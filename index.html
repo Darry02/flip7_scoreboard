@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111411">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <title>Flip 7 Scoreboard</title>
+  <style>
+    :root{
+      --bg:#101310;--panel:#191e19;--panel2:#222822;--panel3:#2a312a;
+      --border:#394239;--text:#f5f7f3;--muted:#a9b1a7;
+      --accent:#f1d14b;--accentText:#151515;--good:#70d99a;--danger:#ff7772;
+      --radius:18px;--shadow:0 12px 28px rgba(0,0,0,.23);
+    }
+    *{box-sizing:border-box}
+    html{background:var(--bg);color-scheme:dark}
+    body{
+      margin:0;background:
+        radial-gradient(circle at 50% -120px,rgba(241,209,75,.11),transparent 390px),
+        var(--bg);
+      color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-tap-highlight-color:transparent;
+    }
+    button,input,select{font:inherit}
+    button{touch-action:manipulation}
+    .app{width:min(100%,920px);margin:0 auto;padding:12px 13px 98px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 1px 13px}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .logo{width:42px;height:42px;border-radius:13px;background:var(--accent);color:#111;display:grid;place-items:center;font-weight:1000;letter-spacing:-1px}
+    .brand h1{margin:0;font-size:18px;line-height:1.05;letter-spacing:-.35px}
+    .brand p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+    .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-right:5px}
+    .header-actions{display:flex;gap:7px}
+    .icon-btn,.btn{
+      min-height:46px;border-radius:13px;border:1px solid var(--border);background:var(--panel);
+      color:var(--text);padding:0 14px;font-weight:850;cursor:pointer
+    }
+    .icon-btn{width:46px;padding:0;display:grid;place-items:center;font-size:19px}
+    .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accentText);font-weight:1000}
+    .btn.danger{background:#281918;border-color:#63312f;color:#ffd0ce}
+    .btn:disabled,.icon-btn:disabled{opacity:.42;cursor:not-allowed}
+    .view{display:none}.view.active{display:block}
+    .summary{
+      display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;
+      padding:15px 16px;border:1px solid var(--border);background:linear-gradient(145deg,var(--panel2),var(--panel));
+      border-radius:var(--radius);margin-bottom:12px
+    }
+    .eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);font-weight:900}
+    .big-title{font-size:23px;font-weight:1000;letter-spacing:-.6px;margin-top:2px}
+    .summary-sub{font-size:12px;color:var(--muted);margin-top:3px}
+    .pill{background:#111611;border:1px solid var(--border);border-radius:999px;padding:9px 11px;font-size:12px;font-weight:900;white-space:nowrap}
+    .banner{display:none;border-radius:var(--radius);padding:16px;margin-bottom:12px}
+    .banner.show{display:block}
+    .winner{background:linear-gradient(135deg,rgba(112,217,154,.17),rgba(241,209,75,.10));border:1px solid rgba(112,217,154,.48)}
+    .tie{background:#292516;border:1px solid #655a24;color:#f7e9a9;font-size:13px;font-weight:800}
+    .banner h2{margin:0 0 4px;font-size:21px}.banner p{margin:0;color:#d9e7da;font-size:13px}
+    .banner-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .players{display:grid;grid-template-columns:1fr;gap:10px}
+    .player-card{
+      background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+      padding:13px;box-shadow:var(--shadow);min-width:0
+    }
+    .player-card.leader{border-color:#766c29;box-shadow:0 0 0 1px rgba(241,209,75,.08),var(--shadow)}
+    .player-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:start}
+    .player-name{font-size:17px;font-weight:1000;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .player-meta{font-size:11px;color:var(--muted);margin-top:3px}
+    .player-meta strong{color:var(--accent)}
+    .total{font-size:32px;line-height:1;font-weight:1000;letter-spacing:-1px;text-align:right}
+    .entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}
+    .score-input{
+      width:100%;min-width:0;height:52px;border-radius:14px;border:1px solid var(--border);
+      background:#0f130f;color:var(--text);padding:0 13px;font-size:20px;font-weight:950;outline:none
+    }
+    .score-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(241,209,75,.12)}
+    .score-input::placeholder{color:#737d72}
+    .clear-input{width:52px;height:52px;border-radius:14px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:20px}
+    .quick{display:flex;gap:7px;margin-top:8px;overflow:auto;scrollbar-width:none}
+    .quick::-webkit-scrollbar{display:none}
+    .quick button{flex:1 0 auto;min-width:56px;height:38px;border-radius:11px;border:1px solid var(--border);background:#202620;color:#e4e8e2;font-weight:850}
+    .dock{
+      position:sticky;bottom:82px;z-index:5;margin-top:13px;padding:9px;
+      background:rgba(16,19,16,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+      border:1px solid var(--border);border-radius:17px;display:grid;grid-template-columns:1fr auto;gap:8px;
+      box-shadow:0 12px 28px rgba(0,0,0,.35)
+    }
+    .dock .primary{min-height:54px;font-size:17px}
+    .section{margin-top:18px}
+    .section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+    .section-head h2{margin:0;font-size:16px}.muted{color:var(--muted)}
+    .history-list,.stats-list{display:grid;gap:7px}
+    .history-row{
+      background:#161a16;border:1px solid #2b332b;border-radius:13px;padding:10px 11px;
+      display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:start
+    }
+    .round-no{width:32px;height:32px;border-radius:9px;background:#252b25;display:grid;place-items:center;font-size:12px;font-weight:950;color:var(--muted)}
+    .chips{display:flex;gap:5px;flex-wrap:wrap}
+    .chip{border:1px solid #333b33;border-radius:999px;padding:5px 8px;font-size:11px;color:#e0e5df}
+    .empty{padding:18px 7px;text-align:center;color:var(--muted);font-size:13px}
+    .stat-hero{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:13px
+    }
+    .metric{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:12px;min-width:0}
+    .metric .label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:900}
+    .metric .value{font-size:25px;font-weight:1000;letter-spacing:-.7px;margin-top:2px;overflow-wrap:anywhere}
+    .leaderboard{
+      background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden
+    }
+    .stat-row{
+      display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:9px;align-items:center;padding:12px 13px;border-bottom:1px solid #2d352d
+    }
+    .stat-row:last-child{border-bottom:none}
+    .rank{font-size:12px;color:var(--muted);font-weight:950;text-align:center}
+    .stat-name{font-weight:950;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .stat-sub{font-size:11px;color:var(--muted);margin-top:2px}
+    .stat-win{font-size:22px;font-weight:1000;color:var(--accent);text-align:right}
+    .compare-box{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:13px}
+    .select-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    select,.text-input{
+      width:100%;min-width:0;height:48px;border-radius:13px;border:1px solid var(--border);background:#101410;color:var(--text);padding:0 12px;font-size:16px;outline:none
+    }
+    select:focus,.text-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(241,209,75,.11)}
+    .vs{margin-top:11px;display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center}
+    .compare-side{text-align:center;background:#131713;border:1px solid #303730;border-radius:14px;padding:11px 8px;min-width:0}
+    .compare-side .n{font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .compare-side .v{font-size:25px;font-weight:1000;margin-top:4px}
+    .vs-label{font-size:11px;color:var(--muted);font-weight:950}
+    .compare-table{display:grid;gap:6px;margin-top:9px}
+    .compare-line{display:grid;grid-template-columns:1fr auto 1fr;gap:7px;align-items:center;font-size:12px}
+    .compare-line span:first-child{text-align:right}.compare-line span:last-child{text-align:left}
+    .compare-line b{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+    .game-card{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:12px}
+    .game-card-top{display:flex;justify-content:space-between;align-items:start;gap:9px}
+    .game-winner{font-weight:1000}.game-date{font-size:11px;color:var(--muted);margin-top:3px}
+    .game-score{font-size:12px;color:var(--muted);text-align:right}
+    .game-card .chips{margin-top:9px}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .toolbar .btn{flex:1 1 140px}
+    .player-manager{display:grid;gap:8px}
+    .manage-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    .manage-row .btn{padding:0 12px}
+    .note{font-size:12px;line-height:1.45;color:var(--muted)}
+    .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+    .panel + .panel{margin-top:11px}
+    .panel h2{margin:0 0 5px;font-size:17px}.panel p{margin:0 0 12px}
+    .bottom-nav{
+      position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:15;
+      width:min(100%,920px);padding:7px 10px calc(7px + env(safe-area-inset-bottom));
+      background:rgba(14,17,14,.96);border-top:1px solid var(--border);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+      display:grid;grid-template-columns:repeat(3,1fr);gap:5px
+    }
+    .nav-btn{
+      min-height:54px;border:0;border-radius:13px;background:transparent;color:var(--muted);
+      display:grid;place-items:center;gap:1px;font-size:11px;font-weight:900;padding:4px
+    }
+    .nav-btn span:first-child{font-size:20px;line-height:1}
+    .nav-btn.active{background:var(--panel2);color:var(--accent)}
+    .toast{
+      position:fixed;left:50%;bottom:86px;transform:translateX(-50%) translateY(10px);z-index:40;
+      max-width:calc(100% - 28px);padding:10px 13px;border-radius:999px;background:#edf0eb;color:#111;
+      font-size:12px;font-weight:900;opacity:0;pointer-events:none;transition:.18s ease;box-shadow:0 10px 28px rgba(0,0,0,.34)
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .modal-bg{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.62);display:none;align-items:flex-end;justify-content:center;padding:12px}
+    .modal-bg.show{display:flex}
+    .modal{width:min(100%,700px);max-height:88%;overflow:auto;background:#171b17;border:1px solid var(--border);border-radius:22px;padding:15px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .modal h2{margin:0;font-size:19px}.modal p{font-size:12px;color:var(--muted)}
+    .modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.modal-actions .btn{flex:1}
+    .file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+    @media (min-width:620px){
+      .players{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .stat-hero{grid-template-columns:repeat(4,minmax(0,1fr))}
+      .app{padding-left:20px;padding-right:20px}
+    }
+    @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.toast{transition:none}}
+  </style>
+</head>
+<body>
+<main class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">F7</div>
+      <div>
+        <h1>Flip 7 Scoreboard</h1>
+        <p><span class="status-dot"></span><span id="saveStatus">Daten werden lokal gespeichert</span></p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Einstellungen">⚙</button>
+    </div>
+  </header>
+
+  <section class="view active" id="scoreView" data-view="score">
+    <section class="summary">
+      <div>
+        <div class="eyebrow">Aktuelle Partie</div>
+        <div class="big-title" id="gameTitle">Partie 1</div>
+        <div class="summary-sub" id="leaderText">Noch keine Punkte</div>
+      </div>
+      <div class="pill" id="roundPill">Runde 1</div>
+    </section>
+
+    <section class="banner winner" id="winnerBanner" aria-live="polite">
+      <h2 id="winnerTitle"></h2>
+      <p id="winnerText"></p>
+      <div class="banner-actions">
+        <button class="btn primary" id="newGameBtn" type="button">Neue Partie</button>
+        <button class="btn" id="undoWinnerBtn" type="button">Letzte Runde zurück</button>
+      </div>
+    </section>
+
+    <section class="banner tie" id="tieBanner" aria-live="polite">
+      Gleichstand bei mindestens 200 Punkten. Die Partie läuft weiter, bis eine Person eindeutig vorne liegt.
+    </section>
+
+    <section class="players" id="players"></section>
+
+    <div class="dock">
+      <button class="btn primary" id="commitBtn" type="button">Runde verbuchen</button>
+      <button class="icon-btn" id="undoBtn" type="button" aria-label="Letzte Runde rückgängig">↶</button>
+    </div>
+
+    <section class="section">
+      <div class="section-head"><h2>Rundenverlauf</h2><span class="muted" id="roundCount"></span></div>
+      <div class="history-list" id="roundHistory"></div>
+    </section>
+  </section>
+
+  <section class="view" id="statsView" data-view="stats">
+    <section class="summary">
+      <div>
+        <div class="eyebrow">Langzeitstatistik</div>
+        <div class="big-title">Spieler-Vergleich</div>
+        <div class="summary-sub">Alle abgeschlossenen Partien auf diesem Gerät</div>
+      </div>
+      <div class="pill" id="gamesPlayedPill">0 Partien</div>
+    </section>
+
+    <div class="stat-hero" id="statsHero"></div>
+
+    <section class="section">
+      <div class="section-head"><h2>Rangliste</h2><span class="muted">nach Siegen</span></div>
+      <div class="leaderboard" id="leaderboard"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Direktvergleich</h2></div>
+      <div class="compare-box">
+        <div class="select-grid">
+          <select id="compareA" aria-label="Erster Spieler"></select>
+          <select id="compareB" aria-label="Zweiter Spieler"></select>
+        </div>
+        <div id="compareResult"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Partiehistorie</h2><span class="muted" id="historyCount"></span></div>
+      <div class="stats-list" id="gameHistory"></div>
+    </section>
+  </section>
+
+  <section class="view" id="playersView" data-view="players">
+    <section class="summary">
+      <div>
+        <div class="eyebrow">Verwaltung</div>
+        <div class="big-title">Mitspieler</div>
+        <div class="summary-sub">Namen bleiben mit ihrer Statistik verknüpft</div>
+      </div>
+      <div class="pill" id="activePlayersPill">0 aktiv</div>
+    </section>
+
+    <section class="panel">
+      <h2>Aktive Spieler</h2>
+      <p class="note">Die aktive Runde muss leer sein, bevor du die Spielerliste änderst.</p>
+      <div class="player-manager" id="playerManager"></div>
+      <div class="toolbar" style="margin-top:10px;margin-bottom:0">
+        <button class="btn primary" id="addPlayerBtn" type="button">+ Spieler</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Daten & Backup</h2>
+      <p class="note">Die PWA speichert dauerhaft in der Browser-Datenbank. Für Handywechsel oder als zusätzliche Sicherung kannst du alle Daten als JSON exportieren.</p>
+      <div class="toolbar" style="margin-bottom:0">
+        <button class="btn" id="exportBtn" type="button">Backup exportieren</button>
+        <button class="btn" id="importBtn" type="button">Backup importieren</button>
+        <input class="file-input" id="importFile" type="file" accept="application/json,.json">
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Zurücksetzen</h2>
+      <p class="note">„Aktuelle Partie“ löscht nur die laufenden Punkte. „Alle Statistiken“ entfernt alle abgeschlossenen Partien, behält aber die Spielernamen.</p>
+      <div class="toolbar" style="margin-bottom:0">
+        <button class="btn" id="resetCurrentBtn" type="button">Aktuelle Partie löschen</button>
+        <button class="btn danger" id="resetStatsBtn" type="button">Alle Statistiken löschen</button>
+      </div>
+    </section>
+  </section>
+</main>
+
+<nav class="bottom-nav" aria-label="Hauptnavigation">
+  <button class="nav-btn active" type="button" data-nav="score"><span>▣</span><span>Score</span></button>
+  <button class="nav-btn" type="button" data-nav="stats"><span>▥</span><span>Statistik</span></button>
+  <button class="nav-btn" type="button" data-nav="players"><span>♟</span><span>Spieler</span></button>
+</nav>
+
+<div class="modal-bg" id="nameModal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+  <div class="modal">
+    <div class="section-head">
+      <h2 id="nameModalTitle">Spieler hinzufügen</h2>
+      <button class="icon-btn" id="closeNameModal" type="button" aria-label="Schließen">×</button>
+    </div>
+    <p>Wenn der Name schon aus früheren Partien bekannt ist, wird die bestehende Statistik automatisch weitergeführt.</p>
+    <input class="text-input" id="newPlayerName" type="text" maxlength="30" placeholder="Name" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn primary" id="confirmAddPlayer" type="button">Hinzufügen</button>
+      <button class="btn" id="cancelAddPlayer" type="button">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const DB_NAME = 'flip7-scoreboard-db';
+  const STORE = 'kv';
+  const STATE_KEY = 'state-v2';
+  const MAX_PLAYERS = 20;
+  const MIN_ACTIVE = 2;
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    saveStatus:$('saveStatus'), scoreView:$('scoreView'), statsView:$('statsView'), playersView:$('playersView'),
+    players:$('players'), gameTitle:$('gameTitle'), leaderText:$('leaderText'), roundPill:$('roundPill'),
+    winnerBanner:$('winnerBanner'), winnerTitle:$('winnerTitle'), winnerText:$('winnerText'),
+    tieBanner:$('tieBanner'), commitBtn:$('commitBtn'), undoBtn:$('undoBtn'), undoWinnerBtn:$('undoWinnerBtn'),
+    newGameBtn:$('newGameBtn'), roundCount:$('roundCount'), roundHistory:$('roundHistory'),
+    gamesPlayedPill:$('gamesPlayedPill'), statsHero:$('statsHero'), leaderboard:$('leaderboard'),
+    compareA:$('compareA'), compareB:$('compareB'), compareResult:$('compareResult'),
+    historyCount:$('historyCount'), gameHistory:$('gameHistory'), activePlayersPill:$('activePlayersPill'),
+    playerManager:$('playerManager'), addPlayerBtn:$('addPlayerBtn'), exportBtn:$('exportBtn'),
+    importBtn:$('importBtn'), importFile:$('importFile'), resetCurrentBtn:$('resetCurrentBtn'),
+    resetStatsBtn:$('resetStatsBtn'), settingsBtn:$('settingsBtn'), nameModal:$('nameModal'),
+    closeNameModal:$('closeNameModal'), cancelAddPlayer:$('cancelAddPlayer'),
+    newPlayerName:$('newPlayerName'), confirmAddPlayer:$('confirmAddPlayer'), toast:$('toast')
+  };
+
+  function id(){
+    if (crypto && crypto.getRandomValues){
+      const a = new Uint32Array(2); crypto.getRandomValues(a);
+      return 'p'+a[0].toString(36)+a[1].toString(36);
+    }
+    return 'p'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  }
+  const now = () => new Date().toISOString();
+  const clamp = (v,min,max) => Math.min(max,Math.max(min,Number.isFinite(Number(v))?Math.trunc(Number(v)):min));
+  const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function defaultState(){
+    const players = ['Spieler 1','Spieler 2','Spieler 3','Spieler 4'].map(name=>({id:id(),name,active:true,createdAt:now()}));
+    return {
+      schema:2,
+      nextGameNumber:1,
+      players,
+      current:newCurrent(1,players.map(p=>p.id)),
+      games:[]
+    };
+  }
+  function newCurrent(number, participantIds){
+    return {id:'g'+id(),number,startedAt:now(),participantIds:[...participantIds],rounds:[],totals:Object.fromEntries(participantIds.map(x=>[x,0])),gameOver:false,winnerId:null,finishedAt:null};
+  }
+
+  function sanitize(raw){
+    if(!raw || typeof raw!=='object') return defaultState();
+    let players = Array.isArray(raw.players) ? raw.players.slice(0,MAX_PLAYERS).map((p,i)=>({
+      id:String(p.id||id()),name:String(p.name||`Spieler ${i+1}`).trim().slice(0,30)||`Spieler ${i+1}`,
+      active:p.active!==false,createdAt:String(p.createdAt||now())
+    })) : [];
+    if(players.length<MIN_ACTIVE){
+      while(players.length<MIN_ACTIVE) players.push({id:id(),name:`Spieler ${players.length+1}`,active:true,createdAt:now()});
+    }
+    while(players.filter(p=>p.active).length<MIN_ACTIVE){
+      const p=players.find(p=>!p.active);
+      if(p) p.active=true; else break;
+    }
+    const ids=new Set(players.map(p=>p.id));
+    let games = Array.isArray(raw.games) ? raw.games.slice(-2000).map((g,gi)=>({
+      id:String(g.id||('old'+gi)),number:clamp(g.number,1,999999),startedAt:String(g.startedAt||now()),
+      finishedAt:String(g.finishedAt||g.startedAt||now()),winnerId:ids.has(g.winnerId)?g.winnerId:null,
+      participantIds:Array.isArray(g.participantIds)?g.participantIds.filter(x=>ids.has(x)):[],
+      finalScores:Object.fromEntries(Object.entries(g.finalScores||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,999999)])),
+      rounds:Array.isArray(g.rounds)?g.rounds.slice(0,500).map(r=>({at:String(r.at||now()),scores:Object.fromEntries(Object.entries(r.scores||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,9999)]))})):[],
+    })).filter(g=>g.winnerId) : [];
+    const activeIds=players.filter(p=>p.active).map(p=>p.id);
+    let current=raw.current && typeof raw.current==='object' ? {
+      id:String(raw.current.id||('g'+id())),number:clamp(raw.current.number,1,999999),startedAt:String(raw.current.startedAt||now()),
+      participantIds:Array.isArray(raw.current.participantIds)?raw.current.participantIds.filter(x=>ids.has(x)):activeIds,
+      rounds:Array.isArray(raw.current.rounds)?raw.current.rounds.slice(0,500).map(r=>({at:String(r.at||now()),scores:Object.fromEntries(Object.entries(r.scores||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,9999)]))})):[],
+      totals:Object.fromEntries(Object.entries(raw.current.totals||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,999999)])),
+      gameOver:Boolean(raw.current.gameOver),winnerId:ids.has(raw.current.winnerId)?raw.current.winnerId:null,
+      finishedAt:raw.current.finishedAt?String(raw.current.finishedAt):null
+    } : newCurrent(1,activeIds);
+    if(current.participantIds.length<MIN_ACTIVE && current.rounds.length===0) current=newCurrent(current.number,activeIds);
+    const nextGameNumber=Math.max(clamp(raw.nextGameNumber,1,999999),current.number,...games.map(g=>g.number),0);
+    return {schema:2,nextGameNumber,players,current,games};
+  }
+
+  let db=null, state=null, useFallback=false;
+
+  function openDb(){
+    return new Promise((resolve,reject)=>{
+      if(!('indexedDB' in window)){reject(new Error('IndexedDB unavailable'));return;}
+      const req=indexedDB.open(DB_NAME,1);
+      req.onupgradeneeded=()=>{ const d=req.result; if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE); };
+      req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error||new Error('DB error'));
+    });
+  }
+  function dbGet(key){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const r=tx.objectStore(STORE).get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+  function dbSet(key,val){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(val,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+  async function load(){
+    try{
+      db=await openDb();
+      const raw=await dbGet(STATE_KEY);
+      state=sanitize(raw);
+      useFallback=false;
+    }catch(e){
+      useFallback=true;
+      try{state=sanitize(JSON.parse(localStorage.getItem(STATE_KEY)||'null'));}catch(_){state=defaultState();}
+      els.saveStatus.textContent='Fallback-Speicher aktiv';
+    }
+  }
+  async function save(){
+    try{
+      if(useFallback) localStorage.setItem(STATE_KEY,JSON.stringify(state));
+      else await dbSet(STATE_KEY,state);
+      els.saveStatus.textContent=useFallback?'Fallback-Speicher aktiv':'Dauerhaft gespeichert';
+    }catch(e){els.saveStatus.textContent='Speichern fehlgeschlagen';}
+  }
+
+  const activePlayers = () => state.players.filter(p=>p.active);
+  const participantPlayers = () => state.current.participantIds.map(pid=>state.players.find(p=>p.id===pid)).filter(Boolean);
+  const pById = pid => state.players.find(p=>p.id===pid);
+  const formatDate = iso => {
+    const d=new Date(iso); if(Number.isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(d);
+  };
+  function leaders(){
+    const ps=participantPlayers(); if(!ps.length) return [];
+    const max=Math.max(...ps.map(p=>state.current.totals[p.id]||0));
+    return ps.filter(p=>(state.current.totals[p.id]||0)===max);
+  }
+  function qualified(){const ls=leaders();return ls.length && (state.current.totals[ls[0].id]||0)>=200?ls:[];}
+
+  async function renderAll(){
+    renderScore();
+    renderStats();
+    renderPlayers();
+    await save();
+  }
+
+  function renderScore(){
+    const ps=participantPlayers();
+    const ls=leaders(), leaderIds=new Set(ls.filter(p=>(state.current.totals[p.id]||0)>0).map(p=>p.id));
+    const stats=computeStats();
+
+    els.players.innerHTML=ps.map(p=>{
+      const s=stats[p.id]||emptyStats(p.id);
+      return `<article class="player-card ${leaderIds.has(p.id)?'leader':''}" data-player="${p.id}">
+        <div class="player-head">
+          <div>
+            <div class="player-name">${esc(p.name)}</div>
+            <div class="player-meta"><strong>${s.wins}</strong> Siege · ${s.games} Partien</div>
+          </div>
+          <div class="total">${state.current.totals[p.id]||0}</div>
+        </div>
+        <div class="entry">
+          <input class="score-input" data-score="${p.id}" type="number" inputmode="numeric" min="0" max="9999" step="1" placeholder="Rundenpunkte" aria-label="Rundenpunkte für ${esc(p.name)}" ${state.current.gameOver?'disabled':''}>
+          <button class="clear-input" data-clear="${p.id}" type="button" aria-label="Eingabe löschen" ${state.current.gameOver?'disabled':''}>×</button>
+        </div>
+        <div class="quick">
+          <button type="button" data-add="${p.id}" data-v="5" ${state.current.gameOver?'disabled':''}>+5</button>
+          <button type="button" data-add="${p.id}" data-v="10" ${state.current.gameOver?'disabled':''}>+10</button>
+          <button type="button" data-add="${p.id}" data-v="15" ${state.current.gameOver?'disabled':''}>+15</button>
+          <button type="button" data-add="${p.id}" data-v="20" ${state.current.gameOver?'disabled':''}>+20</button>
+          <button type="button" data-zero="${p.id}" ${state.current.gameOver?'disabled':''}>0</button>
+        </div>
+      </article>`;
+    }).join('');
+
+    els.gameTitle.textContent=`Partie ${state.current.number}`;
+    els.roundPill.textContent=`Runde ${state.current.rounds.length+1}`;
+    if(ls.length && (state.current.totals[ls[0].id]||0)>0){
+      const score=state.current.totals[ls[0].id]||0;
+      els.leaderText.textContent=ls.length===1?`${ls[0].name} führt mit ${score}`:`${ls.length} Spieler gleichauf bei ${score}`;
+    }else els.leaderText.textContent='Noch keine Punkte';
+
+    const q=qualified();
+    els.tieBanner.classList.toggle('show',!state.current.gameOver && q.length>1);
+    if(state.current.gameOver && state.current.winnerId){
+      const w=pById(state.current.winnerId);
+      const s=stats[w.id]||emptyStats(w.id);
+      els.winnerTitle.textContent=`${w.name} gewinnt!`;
+      els.winnerText.textContent=`${state.current.totals[w.id]} Punkte · insgesamt ${s.wins} Sieg${s.wins===1?'':'e'}`;
+      els.winnerBanner.classList.add('show');
+    }else els.winnerBanner.classList.remove('show');
+
+    els.commitBtn.disabled=state.current.gameOver;
+    els.undoBtn.disabled=state.current.rounds.length===0;
+    els.undoWinnerBtn.disabled=state.current.rounds.length===0;
+    els.roundCount.textContent=state.current.rounds.length?`${state.current.rounds.length} Runde${state.current.rounds.length===1?'':'n'}`:'';
+    if(!state.current.rounds.length) els.roundHistory.innerHTML='<div class="empty">Noch keine Runde verbucht.</div>';
+    else els.roundHistory.innerHTML=[...state.current.rounds].reverse().map((r,i)=>{
+      const n=state.current.rounds.length-i;
+      const chips=ps.map(p=>`<span class="chip">${esc(p.name)} +${r.scores[p.id]||0}</span>`).join('');
+      return `<div class="history-row"><div class="round-no">${n}</div><div class="chips">${chips}</div></div>`;
+    }).join('');
+  }
+
+  function emptyStats(pid){return {id:pid,games:0,wins:0,points:0,avg:0,best:0,winRate:0};}
+  function computeStats(){
+    const map=Object.fromEntries(state.players.map(p=>[p.id,emptyStats(p.id)]));
+    for(const g of state.games){
+      for(const pid of g.participantIds){
+        if(!map[pid]) continue;
+        const sc=g.finalScores[pid]||0;
+        map[pid].games++; map[pid].points+=sc; map[pid].best=Math.max(map[pid].best,sc);
+      }
+      if(g.winnerId && map[g.winnerId]) map[g.winnerId].wins++;
+    }
+    for(const s of Object.values(map)){
+      s.avg=s.games?s.points/s.games:0;
+      s.winRate=s.games?s.wins/s.games*100:0;
+    }
+    return map;
+  }
+
+  function renderStats(){
+    const stats=computeStats();
+    const ranked=state.players.map(p=>({...p,...stats[p.id]})).filter(p=>p.games>0 || p.active)
+      .sort((a,b)=>b.wins-a.wins || b.winRate-a.winRate || b.avg-a.avg || a.name.localeCompare(b.name,'de'));
+
+    els.gamesPlayedPill.textContent=`${state.games.length} Partie${state.games.length===1?'':'n'}`;
+    const totalRounds=state.games.reduce((a,g)=>a+g.rounds.length,0);
+    const top=ranked[0];
+    const mostGames=[...ranked].sort((a,b)=>b.games-a.games)[0];
+    const bestAvg=[...ranked].filter(x=>x.games>0).sort((a,b)=>b.avg-a.avg)[0];
+
+    els.statsHero.innerHTML=[
+      ['Partien',state.games.length],
+      ['Runden',totalRounds],
+      ['Meiste Siege',top&&top.wins?`${esc(top.name)} · ${top.wins}`:'–'],
+      ['Ø Punkte',bestAvg?`${esc(bestAvg.name)} · ${Math.round(bestAvg.avg)}`:'–']
+    ].map(([l,v])=>`<div class="metric"><div class="label">${l}</div><div class="value">${v}</div></div>`).join('');
+
+    if(!ranked.length) els.leaderboard.innerHTML='<div class="empty">Noch keine Spieler vorhanden.</div>';
+    else els.leaderboard.innerHTML=ranked.map((p,i)=>`<div class="stat-row">
+      <div class="rank">${i+1}</div>
+      <div><div class="stat-name">${esc(p.name)}</div><div class="stat-sub">${p.games} Partien · ${p.winRate.toFixed(0)}% Siegquote · Ø ${p.avg.toFixed(1)} Punkte</div></div>
+      <div class="stat-win">${p.wins}</div>
+    </div>`).join('');
+
+    const options=state.players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+    const prevA=els.compareA.value, prevB=els.compareB.value;
+    els.compareA.innerHTML=options; els.compareB.innerHTML=options;
+    if(prevA && pById(prevA)) els.compareA.value=prevA;
+    if(prevB && pById(prevB)) els.compareB.value=prevB;
+    if(!els.compareA.value && state.players[0]) els.compareA.value=state.players[0].id;
+    if((!els.compareB.value || els.compareB.value===els.compareA.value) && state.players.length>1) els.compareB.value=state.players[1].id;
+    renderCompare();
+
+    els.historyCount.textContent=state.games.length?`${state.games.length} gespeichert`:'';
+    if(!state.games.length) els.gameHistory.innerHTML='<div class="empty">Noch keine abgeschlossene Partie. Sobald ein Sieger feststeht, landet die Partie dauerhaft hier.</div>';
+    else els.gameHistory.innerHTML=[...state.games].reverse().map(g=>{
+      const w=pById(g.winnerId);
+      const scores=g.participantIds.map(pid=>({p:pById(pid),score:g.finalScores[pid]||0})).filter(x=>x.p).sort((a,b)=>b.score-a.score);
+      return `<article class="game-card">
+        <div class="game-card-top">
+          <div><div class="game-winner">Partie ${g.number}: ${w?esc(w.name):'Unbekannt'} gewinnt</div><div class="game-date">${formatDate(g.finishedAt)} · ${g.rounds.length} Runde${g.rounds.length===1?'':'n'}</div></div>
+          <div class="game-score">${w?(g.finalScores[w.id]||0)+' Pkt.':''}</div>
+        </div>
+        <div class="chips">${scores.map(x=>`<span class="chip">${esc(x.p.name)} ${x.score}</span>`).join('')}</div>
+      </article>`;
+    }).join('');
+  }
+
+  function renderCompare(){
+    const a=els.compareA.value,b=els.compareB.value;
+    if(!a||!b||a===b){
+      els.compareResult.innerHTML='<div class="empty">Wähle zwei unterschiedliche Spieler.</div>'; return;
+    }
+    const pa=pById(a),pb=pById(b); if(!pa||!pb) return;
+    const shared=state.games.filter(g=>g.participantIds.includes(a)&&g.participantIds.includes(b));
+    let wa=0,wb=0,ta=0,tb=0;
+    for(const g of shared){ if(g.winnerId===a)wa++; if(g.winnerId===b)wb++; ta+=g.finalScores[a]||0; tb+=g.finalScores[b]||0; }
+    const avga=shared.length?ta/shared.length:0,avgb=shared.length?tb/shared.length:0;
+    const bestA=shared.reduce((m,g)=>Math.max(m,g.finalScores[a]||0),0),bestB=shared.reduce((m,g)=>Math.max(m,g.finalScores[b]||0),0);
+    els.compareResult.innerHTML=`<div class="vs">
+      <div class="compare-side"><div class="n">${esc(pa.name)}</div><div class="v">${wa}</div><div class="muted" style="font-size:10px">Siege gegeneinander</div></div>
+      <div class="vs-label">VS</div>
+      <div class="compare-side"><div class="n">${esc(pb.name)}</div><div class="v">${wb}</div><div class="muted" style="font-size:10px">Siege gegeneinander</div></div>
+    </div>
+    <div class="compare-table">
+      <div class="compare-line"><span>${shared.length}</span><b>gemeinsame Partien</b><span>${shared.length}</span></div>
+      <div class="compare-line"><span>${avga.toFixed(1)}</span><b>Ø Endstand</b><span>${avgb.toFixed(1)}</span></div>
+      <div class="compare-line"><span>${bestA}</span><b>bester Endstand</b><span>${bestB}</span></div>
+    </div>`;
+  }
+
+  function renderPlayers(){
+    const canEdit=state.current.rounds.length===0 && !state.current.gameOver;
+    const active=activePlayers();
+    els.activePlayersPill.textContent=`${active.length} aktiv`;
+    els.playerManager.innerHTML=active.map(p=>`<div class="manage-row">
+      <input class="text-input" data-player-name="${p.id}" type="text" maxlength="30" value="${esc(p.name)}" aria-label="Name ${esc(p.name)}" ${canEdit?'':'disabled'}>
+      <button class="btn" data-remove="${p.id}" type="button" ${(!canEdit||active.length<=MIN_ACTIVE)?'disabled':''}>Entfernen</button>
+    </div>`).join('');
+    els.addPlayerBtn.disabled=!canEdit || active.length>=MAX_PLAYERS;
+  }
+
+  function readInputs(){
+    const scores={}; let any=false;
+    for(const p of participantPlayers()){
+      const input=els.players.querySelector(`[data-score="${CSS.escape(p.id)}"]`);
+      const raw=input?input.value.trim():'';
+      const n=raw===''?0:clamp(raw,0,9999);
+      scores[p.id]=n; if(raw!=='' || n!==0) any=true;
+    }
+    return {scores,any};
+  }
+
+  async function commitRound(){
+    if(state.current.gameOver)return;
+    const {scores,any}=readInputs();
+    if(!any){toast('Bitte zuerst Punkte eintragen.');return;}
+    state.current.rounds.push({at:now(),scores});
+    for(const pid of state.current.participantIds) state.current.totals[pid]=(state.current.totals[pid]||0)+(scores[pid]||0);
+
+    const q=qualified();
+    if(q.length===1){
+      const w=q[0];
+      state.current.gameOver=true; state.current.winnerId=w.id; state.current.finishedAt=now();
+      const exists=state.games.some(g=>g.id===state.current.id);
+      if(!exists){
+        state.games.push({
+          id:state.current.id,number:state.current.number,startedAt:state.current.startedAt,finishedAt:state.current.finishedAt,
+          winnerId:w.id,participantIds:[...state.current.participantIds],finalScores:{...state.current.totals},
+          rounds:state.current.rounds.map(r=>({at:r.at,scores:{...r.scores}}))
+        });
+      }
+    }
+    await renderAll();
+    toast(state.current.gameOver?`${q[0].name} gewinnt!`:'Runde verbucht.');
+  }
+
+  async function undo(){
+    if(!state.current.rounds.length)return;
+    if(state.current.gameOver){
+      state.games=state.games.filter(g=>g.id!==state.current.id);
+      state.current.gameOver=false;state.current.winnerId=null;state.current.finishedAt=null;
+    }
+    const r=state.current.rounds.pop();
+    for(const pid of state.current.participantIds) state.current.totals[pid]=Math.max(0,(state.current.totals[pid]||0)-(r.scores[pid]||0));
+    await renderAll(); toast('Letzte Runde zurückgenommen.');
+  }
+
+  async function newGame(){
+    if(!state.current.gameOver && state.current.rounds.length && !confirm('Die aktuelle Partie ist noch nicht beendet. Wirklich verwerfen und eine neue starten?')) return;
+    const num=Math.max(state.nextGameNumber,state.current.number)+1;
+    state.nextGameNumber=num;
+    state.current=newCurrent(num,activePlayers().map(p=>p.id));
+    await renderAll(); showView('score'); toast(`Partie ${num} gestartet.`);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function showView(name){
+    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===name));
+    document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===name));
+    if(name==='stats') renderStats();
+    if(name==='players') renderPlayers();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function openNameModal(){
+    if(state.current.rounds.length || state.current.gameOver){toast('Spielerliste nur vor Beginn einer Partie ändern.');return;}
+    els.newPlayerName.value='';els.nameModal.classList.add('show');document.body.style.overflow='hidden';
+    setTimeout(()=>els.newPlayerName.focus(),40);
+  }
+  function closeName(){els.nameModal.classList.remove('show');document.body.style.overflow='';}
+
+  async function addPlayer(){
+    const name=els.newPlayerName.value.trim().replace(/\s+/g,' ').slice(0,30);
+    if(!name){toast('Bitte einen Namen eingeben.');return;}
+    const existing=state.players.find(p=>p.name.localeCompare(name,'de',{sensitivity:'accent'})===0);
+    if(existing){
+      if(existing.active){toast('Dieser Spieler ist bereits aktiv.');return;}
+      existing.active=true;
+      state.current.participantIds.push(existing.id);state.current.totals[existing.id]=0;
+      toast(`${existing.name} wieder aktiviert.`);
+    }else{
+      if(state.players.length>=MAX_PLAYERS){toast('Maximal 20 Spieler.');return;}
+      const p={id:id(),name,active:true,createdAt:now()};state.players.push(p);
+      state.current.participantIds.push(p.id);state.current.totals[p.id]=0;
+      toast(`${name} hinzugefügt.`);
+    }
+    closeName();await renderAll();
+  }
+
+  async function removePlayer(pid){
+    if(state.current.rounds.length || state.current.gameOver)return;
+    const active=activePlayers(); if(active.length<=MIN_ACTIVE)return;
+    const p=pById(pid);if(!p)return;
+    if(!confirm(`${p.name} aus der aktuellen Spielerliste entfernen? Die frühere Statistik bleibt erhalten.`))return;
+    p.active=false;
+    state.current.participantIds=state.current.participantIds.filter(x=>x!==pid);
+    delete state.current.totals[pid];
+    await renderAll(); toast(`${p.name} entfernt.`);
+  }
+
+  async function renamePlayer(pid,name){
+    const p=pById(pid); if(!p)return;
+    const clean=name.trim().replace(/\s+/g,' ').slice(0,30);
+    if(!clean){renderPlayers();toast('Name darf nicht leer sein.');return;}
+    const clash=state.players.find(x=>x.id!==pid && x.name.localeCompare(clean,'de',{sensitivity:'accent'})===0);
+    if(clash){renderPlayers();toast('Der Name existiert bereits.');return;}
+    p.name=clean; await renderAll();
+  }
+
+  async function resetCurrent(){
+    if(!confirm('Laufende Punkte und Runden der aktuellen Partie löschen?'))return;
+    if(state.current.gameOver) state.games=state.games.filter(g=>g.id!==state.current.id);
+    state.current=newCurrent(state.current.number,activePlayers().map(p=>p.id));
+    await renderAll();toast('Aktuelle Partie gelöscht.');
+  }
+
+  async function resetStats(){
+    if(!confirm('Alle abgeschlossenen Partien und Langzeitstatistiken endgültig löschen? Spielernamen bleiben erhalten.'))return;
+    state.games=[];state.nextGameNumber=1;
+    state.current=newCurrent(1,activePlayers().map(p=>p.id));
+    await renderAll();toast('Statistiken gelöscht.');
+  }
+
+  function exportBackup(){
+    const blob=new Blob([JSON.stringify({app:'Flip7 Scoreboard',exportedAt:now(),state},null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download=`flip7-backup-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup exportiert.');
+  }
+  async function importBackup(file){
+    try{
+      const text=await file.text();const data=JSON.parse(text);const incoming=sanitize(data.state||data);
+      if(!confirm(`Backup mit ${incoming.games.length} abgeschlossenen Partien importieren und aktuelle Daten ersetzen?`))return;
+      state=incoming;await renderAll();showView('stats');toast('Backup importiert.');
+    }catch(e){toast('Backup konnte nicht gelesen werden.');}
+    els.importFile.value='';
+  }
+
+  let toastTimer;
+  function toast(msg){clearTimeout(toastTimer);els.toast.textContent=msg;els.toast.classList.add('show');toastTimer=setTimeout(()=>els.toast.classList.remove('show'),1900);}
+
+  els.players.addEventListener('click',e=>{
+    const add=e.target.closest('[data-add]');
+    if(add){
+      const input=els.players.querySelector(`[data-score="${CSS.escape(add.dataset.add)}"]`);
+      if(input&&!input.disabled){input.value=String(clamp((Number(input.value)||0)+(Number(add.dataset.v)||0),0,9999));input.focus();}
+      return;
+    }
+    const zero=e.target.closest('[data-zero]');
+    if(zero){const input=els.players.querySelector(`[data-score="${CSS.escape(zero.dataset.zero)}"]`);if(input){input.value='0';input.focus();}return;}
+    const clear=e.target.closest('[data-clear]');
+    if(clear){const input=els.players.querySelector(`[data-score="${CSS.escape(clear.dataset.clear)}"]`);if(input){input.value='';input.focus();}}
+  });
+  els.commitBtn.addEventListener('click',commitRound);
+  els.undoBtn.addEventListener('click',undo);els.undoWinnerBtn.addEventListener('click',undo);els.newGameBtn.addEventListener('click',newGame);
+  document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.nav)));
+  els.settingsBtn.addEventListener('click',()=>showView('players'));
+  els.compareA.addEventListener('change',renderCompare);els.compareB.addEventListener('change',renderCompare);
+  els.addPlayerBtn.addEventListener('click',openNameModal);els.closeNameModal.addEventListener('click',closeName);els.cancelAddPlayer.addEventListener('click',closeName);
+  els.nameModal.addEventListener('click',e=>{if(e.target===els.nameModal)closeName();});
+  els.confirmAddPlayer.addEventListener('click',addPlayer);els.newPlayerName.addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer();});
+  els.playerManager.addEventListener('click',e=>{const b=e.target.closest('[data-remove]');if(b)removePlayer(b.dataset.remove);});
+  els.playerManager.addEventListener('change',e=>{const inp=e.target.closest('[data-player-name]');if(inp)renamePlayer(inp.dataset.playerName,inp.value);});
+  els.exportBtn.addEventListener('click',exportBackup);els.importBtn.addEventListener('click',()=>els.importFile.click());
+  els.importFile.addEventListener('change',()=>{const f=els.importFile.files&&els.importFile.files[0];if(f)importBackup(f);});
+  els.resetCurrentBtn.addEventListener('click',resetCurrent);els.resetStatsBtn.addEventListener('click',resetStats);
+
+  async function init(){
+    await load();
+    await renderAll();
+    if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>

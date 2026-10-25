@@ -141,6 +141,12 @@
     .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
     .toolbar .btn{flex:1 1 140px}
     .player-manager{display:grid;gap:8px}
+    .player-library{display:grid;gap:8px;margin-top:10px}
+    .library-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center;background:#121612;border:1px solid #2b332b;border-radius:13px;padding:10px 11px}
+    .library-name{font-size:14px;font-weight:900}
+    .library-meta{font-size:11px;color:var(--muted);margin-top:3px}
+    .field-label{display:block;font-size:12px;color:var(--muted);font-weight:800;margin:10px 0 6px}
+    .divider-label{text-align:center;color:var(--muted);font-size:11px;font-weight:900;margin:14px 0 8px}
     .manage-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
     .manage-row .btn{padding:0 12px}
     .note{font-size:12px;line-height:1.45;color:var(--muted)}
@@ -279,8 +285,14 @@
       <p class="note">Die aktive Runde muss leer sein, bevor du die Spielerliste änderst.</p>
       <div class="player-manager" id="playerManager"></div>
       <div class="toolbar" style="margin-top:10px;margin-bottom:0">
-        <button class="btn primary" id="addPlayerBtn" type="button">+ Spieler</button>
+        <button class="btn primary" id="addPlayerBtn" type="button">+ Spieler aus Bibliothek</button>
       </div>
+    </section>
+
+    <section class="panel">
+      <h2>Spielerbibliothek</h2>
+      <p class="note">Jeder Spieler hat eine eigene ID. Dadurch bleiben seine Alltime-Statistiken erhalten, auch wenn andere Spieler in späteren Partien dazukommen.</p>
+      <div class="player-library" id="playerLibrary"></div>
     </section>
 
     <section class="panel">
@@ -295,9 +307,10 @@
 
     <section class="panel">
       <h2>Zurücksetzen</h2>
-      <p class="note">„Aktuelle Partie“ löscht nur die laufenden Punkte. „Alle Statistiken“ entfernt alle abgeschlossenen Partien, behält aber die Spielernamen.</p>
+      <p class="note">„Aktuelle Partie“ löscht nur die laufenden Punkte. „Partie-Reset auf 1“ startet eine neue Zählserie ab Partie 1, ohne die Langzeitstatistik zu löschen. „Alle Statistiken“ entfernt alle abgeschlossenen Partien, behält aber die Spielerbibliothek.</p>
       <div class="toolbar" style="margin-bottom:0">
         <button class="btn" id="resetCurrentBtn" type="button">Aktuelle Partie löschen</button>
+        <button class="btn" id="resetSeriesBtn" type="button">Partie-Reset auf 1</button>
         <button class="btn danger" id="resetStatsBtn" type="button">Alle Statistiken löschen</button>
       </div>
     </section>
@@ -313,13 +326,19 @@
 <div class="modal-bg" id="nameModal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
   <div class="modal">
     <div class="section-head">
-      <h2 id="nameModalTitle">Spieler hinzufügen</h2>
+      <h2 id="nameModalTitle">Spieler zur Partie hinzufügen</h2>
       <button class="icon-btn" id="closeNameModal" type="button" aria-label="Schließen">×</button>
     </div>
-    <p>Wenn der Name schon aus früheren Partien bekannt ist, wird die bestehende Statistik automatisch weitergeführt.</p>
-    <input class="text-input" id="newPlayerName" type="text" maxlength="30" placeholder="Name" autocomplete="off">
+    <p>Wähle einen bereits bekannten Spieler aus oder lege eine neue Person an. Die Alltime-Statistik hängt an der Spieler-ID und wird nicht überschrieben.</p>
+    <label class="field-label" for="existingPlayerSelect">Bestehender Spieler</label>
+    <select class="text-input" id="existingPlayerSelect"></select>
     <div class="modal-actions">
-      <button class="btn primary" id="confirmAddPlayer" type="button">Hinzufügen</button>
+      <button class="btn primary" id="addExistingPlayerBtn" type="button">Bestehenden hinzufügen</button>
+    </div>
+    <div class="divider-label">oder neu erstellen</div>
+    <input class="text-input" id="newPlayerName" type="text" maxlength="30" placeholder="Neuer Spielername" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn primary" id="confirmAddPlayer" type="button">Neuen Spieler erstellen</button>
       <button class="btn" id="cancelAddPlayer" type="button">Abbrechen</button>
     </div>
   </div>
@@ -347,11 +366,11 @@
     gamesPlayedPill:$('gamesPlayedPill'), statsHero:$('statsHero'), leaderboard:$('leaderboard'),
     compareA:$('compareA'), compareB:$('compareB'), compareResult:$('compareResult'),
     historyCount:$('historyCount'), gameHistory:$('gameHistory'), activePlayersPill:$('activePlayersPill'),
-    playerManager:$('playerManager'), addPlayerBtn:$('addPlayerBtn'), exportBtn:$('exportBtn'),
-    importBtn:$('importBtn'), importFile:$('importFile'), resetCurrentBtn:$('resetCurrentBtn'),
+    playerManager:$('playerManager'), playerLibrary:$('playerLibrary'), addPlayerBtn:$('addPlayerBtn'), exportBtn:$('exportBtn'),
+    importBtn:$('importBtn'), importFile:$('importFile'), resetCurrentBtn:$('resetCurrentBtn'), resetSeriesBtn:$('resetSeriesBtn'),
     resetStatsBtn:$('resetStatsBtn'), settingsBtn:$('settingsBtn'), nameModal:$('nameModal'),
-    closeNameModal:$('closeNameModal'), cancelAddPlayer:$('cancelAddPlayer'),
-    newPlayerName:$('newPlayerName'), confirmAddPlayer:$('confirmAddPlayer'), toast:$('toast')
+    closeNameModal:$('closeNameModal'), cancelAddPlayer:$('cancelAddPlayer'), existingPlayerSelect:$('existingPlayerSelect'),
+    addExistingPlayerBtn:$('addExistingPlayerBtn'), newPlayerName:$('newPlayerName'), confirmAddPlayer:$('confirmAddPlayer'), toast:$('toast')
   };
 
   function id(){
@@ -368,7 +387,7 @@
   function defaultState(){
     const players = ['Spieler 1','Spieler 2','Spieler 3','Spieler 4'].map(name=>({id:id(),name,active:true,createdAt:now()}));
     return {
-      schema:2,
+      schema:3,
       nextGameNumber:1,
       players,
       current:newCurrent(1,players.map(p=>p.id)),
@@ -399,6 +418,7 @@
       participantIds:Array.isArray(g.participantIds)?g.participantIds.filter(x=>ids.has(x)):[],
       finalScores:Object.fromEntries(Object.entries(g.finalScores||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,999999)])),
       rounds:Array.isArray(g.rounds)?g.rounds.slice(0,500).map(r=>({at:String(r.at||now()),scores:Object.fromEntries(Object.entries(r.scores||{}).filter(([pid])=>ids.has(pid)).map(([pid,v])=>[pid,clamp(v,0,9999)]))})):[],
+      participantNames:Object.fromEntries((Array.isArray(g.participantIds)?g.participantIds:[]).filter(pid=>ids.has(pid)).map(pid=>[pid,String((g.participantNames&&g.participantNames[pid])||players.find(p=>p.id===pid)?.name||'Unbekannt')])),
     })).filter(g=>g.winnerId) : [];
     const activeIds=players.filter(p=>p.active).map(p=>p.id);
     let current=raw.current && typeof raw.current==='object' ? {
@@ -411,7 +431,7 @@
     } : newCurrent(1,activeIds);
     if(current.participantIds.length<MIN_ACTIVE && current.rounds.length===0) current=newCurrent(current.number,activeIds);
     const nextGameNumber=Math.max(clamp(raw.nextGameNumber,1,999999),current.number,...games.map(g=>g.number),0);
-    return {schema:2,nextGameNumber,players,current,games};
+    return {schema:3,nextGameNumber,players,current,games};
   }
 
   let db=null, state=null, useFallback=false;
@@ -487,10 +507,7 @@
           <button class="clear-input" data-clear="${p.id}" type="button" aria-label="Eingabe löschen" ${state.current.gameOver?'disabled':''}>×</button>
         </div>
         <div class="quick">
-          <button type="button" data-add="${p.id}" data-v="5" ${state.current.gameOver?'disabled':''}>+5</button>
-          <button type="button" data-add="${p.id}" data-v="10" ${state.current.gameOver?'disabled':''}>+10</button>
           <button type="button" data-add="${p.id}" data-v="15" ${state.current.gameOver?'disabled':''}>+15</button>
-          <button type="button" data-add="${p.id}" data-v="20" ${state.current.gameOver?'disabled':''}>+20</button>
           <button type="button" data-zero="${p.id}" ${state.current.gameOver?'disabled':''}>0</button>
         </div>
       </article>`;
@@ -581,13 +598,14 @@
     if(!state.games.length) els.gameHistory.innerHTML='<div class="empty">Noch keine abgeschlossene Partie. Sobald ein Sieger feststeht, landet die Partie dauerhaft hier.</div>';
     else els.gameHistory.innerHTML=[...state.games].reverse().map(g=>{
       const w=pById(g.winnerId);
-      const scores=g.participantIds.map(pid=>({p:pById(pid),score:g.finalScores[pid]||0})).filter(x=>x.p).sort((a,b)=>b.score-a.score);
+      const winnerName=(g.participantNames&&g.participantNames[g.winnerId])||w?.name||'Unbekannt';
+      const scores=g.participantIds.map(pid=>({p:pById(pid),name:(g.participantNames&&g.participantNames[pid])||pById(pid)?.name||'Unbekannt',score:g.finalScores[pid]||0})).filter(x=>x.p||x.name).sort((a,b)=>b.score-a.score);
       return `<article class="game-card">
         <div class="game-card-top">
-          <div><div class="game-winner">Partie ${g.number}: ${w?esc(w.name):'Unbekannt'} gewinnt</div><div class="game-date">${formatDate(g.finishedAt)} · ${g.rounds.length} Runde${g.rounds.length===1?'':'n'}</div></div>
+          <div><div class="game-winner">Partie ${g.number}: ${esc(winnerName)} gewinnt</div><div class="game-date">${formatDate(g.finishedAt)} · ${g.rounds.length} Runde${g.rounds.length===1?'':'n'}</div></div>
           <div class="game-score">${w?(g.finalScores[w.id]||0)+' Pkt.':''}</div>
         </div>
-        <div class="chips">${scores.map(x=>`<span class="chip">${esc(x.p.name)} ${x.score}</span>`).join('')}</div>
+        <div class="chips">${scores.map(x=>`<span class="chip">${esc(x.name)} ${x.score}</span>`).join('')}</div>
       </article>`;
     }).join('');
   }
@@ -620,10 +638,26 @@
     const active=activePlayers();
     els.activePlayersPill.textContent=`${active.length} aktiv`;
     els.playerManager.innerHTML=active.map(p=>`<div class="manage-row">
-      <input class="text-input" data-player-name="${p.id}" type="text" maxlength="30" value="${esc(p.name)}" aria-label="Name ${esc(p.name)}" ${canEdit?'':'disabled'}>
+      <div>
+        <div class="library-name">${esc(p.name)}</div>
+        <div class="library-meta">${computeStats()[p.id]?.games||0} Partien · ${computeStats()[p.id]?.wins||0} Siege</div>
+      </div>
       <button class="btn" data-remove="${p.id}" type="button" ${(!canEdit||active.length<=MIN_ACTIVE)?'disabled':''}>Entfernen</button>
     </div>`).join('');
     els.addPlayerBtn.disabled=!canEdit || active.length>=MAX_PLAYERS;
+
+    const stats=computeStats();
+    const library=[...state.players].sort((a,b)=>{
+      const sa=stats[a.id]||emptyStats(a.id), sb=stats[b.id]||emptyStats(b.id);
+      return (b.active-a.active) || (sb.games-sa.games) || a.name.localeCompare(b.name,'de');
+    });
+    els.playerLibrary.innerHTML=library.length?library.map(p=>{
+      const st=stats[p.id]||emptyStats(p.id);
+      return `<div class="library-row">
+        <div><div class="library-name">${esc(p.name)} ${p.active?'· aktiv':''}</div><div class="library-meta">${st.games} Partien · ${st.wins} Siege · Alltime ${st.points} Punkte · Ø ${st.avg.toFixed(1)} · Bestwert ${st.best}</div></div>
+        ${(!p.active&&canEdit)?`<button class="btn" data-library-add="${p.id}" type="button">Hinzufügen</button>`:''}
+      </div>`;
+    }).join(''):'<div class="empty">Noch keine Spieler angelegt.</div>';
   }
 
   function readInputs(){
@@ -652,7 +686,9 @@
       if(!exists){
         state.games.push({
           id:state.current.id,number:state.current.number,startedAt:state.current.startedAt,finishedAt:state.current.finishedAt,
-          winnerId:w.id,participantIds:[...state.current.participantIds],finalScores:{...state.current.totals},
+          winnerId:w.id,participantIds:[...state.current.participantIds],
+          participantNames:Object.fromEntries(state.current.participantIds.map(pid=>[pid,pById(pid)?.name||'Unbekannt'])),
+          finalScores:{...state.current.totals},
           rounds:state.current.rounds.map(r=>({at:r.at,scores:{...r.scores}}))
         });
       }
@@ -691,27 +727,36 @@
 
   function openNameModal(){
     if(state.current.rounds.length || state.current.gameOver){toast('Spielerliste nur vor Beginn einer Partie ändern.');return;}
+    const inactive=state.players.filter(p=>!p.active);
+    els.existingPlayerSelect.innerHTML=inactive.length?inactive.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''):'<option value="">Keine bestehenden Spieler verfügbar</option>';
+    els.addExistingPlayerBtn.disabled=!inactive.length || activePlayers().length>=MAX_PLAYERS;
     els.newPlayerName.value='';els.nameModal.classList.add('show');document.body.style.overflow='hidden';
-    setTimeout(()=>els.newPlayerName.focus(),40);
+    setTimeout(()=>inactive.length?els.existingPlayerSelect.focus():els.newPlayerName.focus(),40);
   }
   function closeName(){els.nameModal.classList.remove('show');document.body.style.overflow='';}
+
+  async function addExistingPlayer(pid){
+    if(state.current.rounds.length || state.current.gameOver)return;
+    const p=pById(pid);
+    if(!p||p.active){toast('Dieser Spieler ist bereits aktiv.');return;}
+    p.active=true;
+    if(!state.current.participantIds.includes(p.id)) state.current.participantIds.push(p.id);
+    state.current.totals[p.id]=0;
+    closeName();await renderAll();toast(`${p.name} hinzugefügt.`);
+  }
 
   async function addPlayer(){
     const name=els.newPlayerName.value.trim().replace(/\s+/g,' ').slice(0,30);
     if(!name){toast('Bitte einen Namen eingeben.');return;}
+    if(state.players.length>=MAX_PLAYERS){toast('Maximal 20 Spieler.');return;}
     const existing=state.players.find(p=>p.name.localeCompare(name,'de',{sensitivity:'accent'})===0);
     if(existing){
-      if(existing.active){toast('Dieser Spieler ist bereits aktiv.');return;}
-      existing.active=true;
-      state.current.participantIds.push(existing.id);state.current.totals[existing.id]=0;
-      toast(`${existing.name} wieder aktiviert.`);
-    }else{
-      if(state.players.length>=MAX_PLAYERS){toast('Maximal 20 Spieler.');return;}
-      const p={id:id(),name,active:true,createdAt:now()};state.players.push(p);
-      state.current.participantIds.push(p.id);state.current.totals[p.id]=0;
-      toast(`${name} hinzugefügt.`);
+      toast(existing.active?'Dieser Spieler ist bereits aktiv.':'Nutze „Bestehenden hinzufügen“, damit die vorhandene Statistik erhalten bleibt.');
+      return;
     }
-    closeName();await renderAll();
+    const p={id:id(),name,active:true,createdAt:now()};state.players.push(p);
+    state.current.participantIds.push(p.id);state.current.totals[p.id]=0;
+    closeName();await renderAll();toast(`${name} neu erstellt.`);
   }
 
   async function removePlayer(pid){
@@ -739,6 +784,13 @@
     if(state.current.gameOver) state.games=state.games.filter(g=>g.id!==state.current.id);
     state.current=newCurrent(state.current.number,activePlayers().map(p=>p.id));
     await renderAll();toast('Aktuelle Partie gelöscht.');
+  }
+
+  async function resetSeries(){
+    if(!confirm('Partie-Reset: Alle bisherigen abgeschlossenen Partien bleiben in der Langzeitstatistik erhalten, aber die laufende Zählung beginnt wieder bei Partie 1. Die aktiven Spieler bleiben ausgewählt. Fortfahren?'))return;
+    state.nextGameNumber=1;
+    state.current=newCurrent(1,activePlayers().map(p=>p.id));
+    await renderAll();showView('score');toast('Neue Serie gestartet: Partie 1.');
   }
 
   async function resetStats(){
@@ -778,6 +830,16 @@
     const clear=e.target.closest('[data-clear]');
     if(clear){const input=els.players.querySelector(`[data-score="${CSS.escape(clear.dataset.clear)}"]`);if(input){input.value='';input.focus();}}
   });
+  els.players.addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    const input=e.target.closest('.score-input');
+    if(!input||input.disabled)return;
+    e.preventDefault();
+    const inputs=[...els.players.querySelectorAll('.score-input:not(:disabled)')];
+    const i=inputs.indexOf(input);
+    if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select();}
+    else input.blur();
+  });
   els.commitBtn.addEventListener('click',commitRound);
   els.undoBtn.addEventListener('click',undo);els.undoWinnerBtn.addEventListener('click',undo);els.newGameBtn.addEventListener('click',newGame);
   document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.nav)));
@@ -785,12 +847,14 @@
   els.compareA.addEventListener('change',renderCompare);els.compareB.addEventListener('change',renderCompare);
   els.addPlayerBtn.addEventListener('click',openNameModal);els.closeNameModal.addEventListener('click',closeName);els.cancelAddPlayer.addEventListener('click',closeName);
   els.nameModal.addEventListener('click',e=>{if(e.target===els.nameModal)closeName();});
-  els.confirmAddPlayer.addEventListener('click',addPlayer);els.newPlayerName.addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer();});
+  els.confirmAddPlayer.addEventListener('click',addPlayer);
+  els.addExistingPlayerBtn.addEventListener('click',()=>addExistingPlayer(els.existingPlayerSelect.value));
+  els.newPlayerName.addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer();});
   els.playerManager.addEventListener('click',e=>{const b=e.target.closest('[data-remove]');if(b)removePlayer(b.dataset.remove);});
-  els.playerManager.addEventListener('change',e=>{const inp=e.target.closest('[data-player-name]');if(inp)renamePlayer(inp.dataset.playerName,inp.value);});
+  els.playerLibrary.addEventListener('click',e=>{const b=e.target.closest('[data-library-add]');if(b){const p=pById(b.dataset.libraryAdd);if(p&&!p.active){p.active=true;if(!state.current.participantIds.includes(p.id))state.current.participantIds.push(p.id);state.current.totals[p.id]=0;renderAll().then(()=>toast(`${p.name} hinzugefügt.`));}}});
   els.exportBtn.addEventListener('click',exportBackup);els.importBtn.addEventListener('click',()=>els.importFile.click());
   els.importFile.addEventListener('change',()=>{const f=els.importFile.files&&els.importFile.files[0];if(f)importBackup(f);});
-  els.resetCurrentBtn.addEventListener('click',resetCurrent);els.resetStatsBtn.addEventListener('click',resetStats);
+  els.resetCurrentBtn.addEventListener('click',resetCurrent);els.resetSeriesBtn.addEventListener('click',resetSeries);els.resetStatsBtn.addEventListener('click',resetStats);
 
   async function init(){
     await load();
